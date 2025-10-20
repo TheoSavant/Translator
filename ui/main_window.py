@@ -1,12 +1,16 @@
 """Main application window"""
 import logging
+import time
+from datetime import datetime
+from collections import deque
+from pathlib import Path
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from deep_translator.constants import GOOGLE_LANGUAGES_TO_CODES
-from langdetect import detect, LangDetectException
+from langdetect import detect, LangDetectException, detect_langs
 from config import config
-from config.constants import RecognitionEngine
+from config.constants import RecognitionEngine, BASE_DIR
 from database import db
 from core import translator, tts_manager, ContinuousSpeechRecognitionThread
 from core import conversation_mode, contextual_engine, offline_translator
@@ -16,7 +20,6 @@ from utils import audio_device_manager, gpu_manager
 from .overlay import ResizableOverlay
 from .settings_dialog import SettingsDialog
 from .model_manager_dialog import ModelManagerDialog
-import time
 
 log = logging.getLogger("Translator")
 
@@ -24,8 +27,8 @@ class LiveTranslatorApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("🌍 Universal Live Translator — Professional Edition v4.5")
-        self.resize(1300, 1000)
-        self.setMinimumSize(900, 700)
+        self.resize(1100, 850)
+        self.setMinimumSize(900, 650)
         self.recognition_thread = None
         self.source_type = "microphone"
         self.translation_mode = "Continuous"
@@ -41,32 +44,104 @@ class LiveTranslatorApp(QMainWindow):
         self.apply_theme(config.get("theme", "dark"))
         self.load_settings()
     
+    def setup_menu_bar(self):
+        """Create organized menu bar for better UX"""
+        menubar = self.menuBar()
+        
+        # File menu
+        file_menu = menubar.addMenu("📁 File")
+        
+        export_action = QAction("💾 Export History", self)
+        export_action.setShortcut("Ctrl+E")
+        export_action.triggered.connect(self.export_history)
+        file_menu.addAction(export_action)
+        
+        clear_action = QAction("🗑️ Clear History", self)
+        clear_action.triggered.connect(self.clear_history)
+        file_menu.addAction(clear_action)
+        
+        file_menu.addSeparator()
+        
+        quit_action = QAction("❌ Quit", self)
+        quit_action.setShortcut("Ctrl+Q")
+        quit_action.triggered.connect(self.close)
+        file_menu.addAction(quit_action)
+        
+        # Tools menu
+        tools_menu = menubar.addMenu("🛠️ Tools")
+        
+        models_action = QAction("📥 Model Manager", self)
+        models_action.setShortcut("Ctrl+Shift+M")
+        models_action.triggered.connect(self.show_models)
+        tools_menu.addAction(models_action)
+        
+        voice_action = QAction("🎙️ Voice Models", self)
+        voice_action.triggered.connect(self.show_rvc_models)
+        tools_menu.addAction(voice_action)
+        
+        platforms_action = QAction("🔗 Platform Integrations", self)
+        platforms_action.triggered.connect(self.show_platforms)
+        tools_menu.addAction(platforms_action)
+        
+        # View menu
+        view_menu = menubar.addMenu("👁️ View")
+        
+        theme_action = QAction("🌓 Toggle Theme", self)
+        theme_action.setShortcut("Ctrl+D")
+        theme_action.triggered.connect(self.toggle_theme)
+        view_menu.addAction(theme_action)
+        
+        overlay_action = QAction("👁️ Toggle Overlay", self)
+        overlay_action.setShortcut("Ctrl+O")
+        overlay_action.triggered.connect(self.toggle_overlay)
+        view_menu.addAction(overlay_action)
+        
+        # Settings menu
+        settings_menu = menubar.addMenu("⚙️ Settings")
+        
+        settings_action = QAction("⚙️ Open Settings", self)
+        settings_action.setShortcut("Ctrl+Shift+S")
+        settings_action.triggered.connect(self.show_settings)
+        settings_menu.addAction(settings_action)
+        
+        # Help menu
+        help_menu = menubar.addMenu("❓ Help")
+        
+        help_action = QAction("📖 Show Help", self)
+        help_action.setShortcut("F1")
+        help_action.triggered.connect(self.show_help)
+        help_menu.addAction(help_action)
+    
     def setup_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QVBoxLayout(central)
         main_layout.setSpacing(15)
+        main_layout.setContentsMargins(12, 12, 12, 12)
         
-        # Professional top bar with enhanced status indicators
-        top_bar = QHBoxLayout()
-        top_bar.setSpacing(12)
+        # Create menu bar for better organization
+        self.setup_menu_bar()
+        
+        # Compact status bar at the top
+        status_bar = QHBoxLayout()
+        status_bar.setSpacing(10)
         
         # Status with enhanced styling
         self.status_label = QLabel("🌐 Ready")
         self.status_label.setStyleSheet("""
             QLabel {
-                font-size: 14px;
+                font-size: 13px;
                 font-weight: 500;
                 color: #82c8ff;
-                padding: 6px 12px;
+                padding: 5px 10px;
                 background: rgba(130,200,255,0.1);
-                border-radius: 8px;
+                border-radius: 6px;
                 border: 1px solid rgba(130,200,255,0.2);
             }
         """)
-        top_bar.addWidget(self.status_label)
+        status_bar.addWidget(self.status_label)
         
-        # GPU status indicator with professional Material Design 3 styling
+        # GPU status indicator
         gpu_color = "#4CAF50" if gpu_manager.is_gpu_available() else "#FFC107"
         gpu_bg = "rgba(76,175,80,0.15)" if gpu_manager.is_gpu_available() else "rgba(255,193,7,0.15)"
         self.gpu_status = QLabel(f"🚀 {gpu_manager.device_name}")
@@ -74,245 +149,120 @@ class LiveTranslatorApp(QMainWindow):
             QLabel {{
                 color: {gpu_color};
                 font-weight: 600;
-                font-size: 13px;
-                padding: 6px 12px;
+                font-size: 12px;
+                padding: 5px 10px;
                 background: {gpu_bg};
-                border-radius: 8px;
+                border-radius: 6px;
                 border: 1px solid {gpu_color};
             }}
         """)
-        self.gpu_status.setToolTip(f"Device: {gpu_manager.device}\nCUDA Available: {gpu_manager.has_cuda}\nMPS Available: {gpu_manager.has_mps}\n\n10-20x faster with GPU acceleration!")
-        top_bar.addWidget(self.gpu_status)
+        self.gpu_status.setToolTip(f"Device: {gpu_manager.device}\nCUDA: {gpu_manager.has_cuda}\nMPS: {gpu_manager.has_mps}")
+        status_bar.addWidget(self.gpu_status)
         
-        # Performance monitor with enhanced styling
-        self.perf_label = QLabel("⚡ Performance: Ready")
+        # Performance monitor
+        self.perf_label = QLabel("⚡ Ready")
         self.perf_label.setStyleSheet("""
             QLabel {
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 500;
                 color: #9aa0a6;
-                padding: 6px 12px;
+                padding: 5px 10px;
                 background: rgba(154,160,166,0.08);
-                border-radius: 8px;
+                border-radius: 6px;
             }
         """)
-        self.perf_label.setToolTip("Real-time processing metrics:\nAverage time | Queue sizes | Device")
-        top_bar.addWidget(self.perf_label)
+        self.perf_label.setToolTip("Real-time processing metrics")
+        status_bar.addWidget(self.perf_label)
         
-        top_bar.addStretch()
+        status_bar.addStretch()
+        main_layout.addLayout(status_bar)
         
-        help_btn = QPushButton("❓ Help")
-        help_btn.clicked.connect(self.show_help)
-        help_btn.setToolTip("Show keyboard shortcuts and features (F1)")
-        help_btn.setStyleSheet("""
-            QPushButton {
-                padding: 8px 16px;
-                font-size: 13px;
-                font-weight: 500;
-            }
-        """)
-        top_bar.addWidget(help_btn)
+        # Simplified config section - organized in tabs
+        config_tabs = QTabWidget()
+        config_tabs.setMaximumHeight(220)
         
-        self.models_btn = QPushButton("📥 Models")
-        self.models_btn.clicked.connect(self.show_models)
-        self.models_btn.setToolTip("Download and manage Whisper and Vosk models")
-        self.models_btn.setStyleSheet("""
-            QPushButton {
-                padding: 8px 16px;
-                font-size: 13px;
-                font-weight: 500;
-            }
-        """)
-        top_bar.addWidget(self.models_btn)
+        # Tab 1: Basic Configuration
+        basic_tab = QWidget()
+        basic_layout = QVBoxLayout(basic_tab)
+        basic_layout.setSpacing(8)
+        basic_layout.setContentsMargins(10, 10, 10, 10)
         
-        self.rvc_btn = QPushButton("🎙️ Voice Models")
-        self.rvc_btn.clicked.connect(self.show_rvc_models)
-        self.rvc_btn.setToolTip("Manage RVC voice duplication models")
-        self.rvc_btn.setStyleSheet("""
-            QPushButton {
-                padding: 8px 16px;
-                font-size: 13px;
-                font-weight: 500;
-            }
-        """)
-        top_bar.addWidget(self.rvc_btn)
-        
-        self.platforms_btn = QPushButton("🔗 Platforms")
-        self.platforms_btn.clicked.connect(self.show_platforms)
-        self.platforms_btn.setToolTip("Configure Discord, Zoom, Teams integrations")
-        self.platforms_btn.setStyleSheet("""
-            QPushButton {
-                padding: 8px 16px;
-                font-size: 13px;
-                font-weight: 500;
-            }
-        """)
-        top_bar.addWidget(self.platforms_btn)
-        
-        self.theme_btn = QPushButton("🌓 Theme")
-        self.theme_btn.clicked.connect(self.toggle_theme)
-        self.theme_btn.setToolTip("Toggle dark/light theme (Ctrl+D)")
-        self.theme_btn.setStyleSheet("""
-            QPushButton {
-                padding: 8px 16px;
-                font-size: 13px;
-                font-weight: 500;
-            }
-        """)
-        top_bar.addWidget(self.theme_btn)
-        
-        self.settings_btn = QPushButton("⚙️ Settings")
-        self.settings_btn.clicked.connect(self.show_settings)
-        self.settings_btn.setToolTip("Configure all application settings")
-        self.settings_btn.setStyleSheet("""
-            QPushButton {
-                padding: 8px 16px;
-                font-size: 13px;
-                font-weight: 500;
-            }
-        """)
-        top_bar.addWidget(self.settings_btn)
-        
-        main_layout.addLayout(top_bar)
-        
-        # Config with GPU toggle
-        config_group = QGroupBox("🌐 Configuration")
-        config_layout = QVBoxLayout()
-        
+        # Languages - more compact
         lang_row = QHBoxLayout()
-        lang_row.setSpacing(10)
-        
-        src_label = QLabel("From:")
-        src_label.setStyleSheet("font-weight: 500; font-size: 13px;")
-        lang_row.addWidget(src_label)
+        lang_row.setSpacing(8)
+        lang_row.addWidget(QLabel("From:"))
         self.source_lang_combo = QComboBox()
         self.populate_languages(self.source_lang_combo, True)
-        self.source_lang_combo.setToolTip("Select source language or 'Auto' for automatic detection")
-        lang_row.addWidget(self.source_lang_combo, 1)
+        self.source_lang_combo.setToolTip("Source language (Auto for detection)")
+        lang_row.addWidget(self.source_lang_combo, 2)
         
         self.swap_btn = QPushButton("⇄")
-        self.swap_btn.setMaximumWidth(50)
+        self.swap_btn.setMaximumWidth(40)
+        self.swap_btn.setMinimumHeight(30)
         self.swap_btn.clicked.connect(self.swap_languages)
-        self.swap_btn.setToolTip("Swap source and target languages")
-        self.swap_btn.setStyleSheet("""
-            QPushButton {
-                font-size: 18px;
-                font-weight: bold;
-                padding: 8px;
-            }
-        """)
+        self.swap_btn.setToolTip("Swap languages")
         lang_row.addWidget(self.swap_btn)
         
-        tgt_label = QLabel("To:")
-        tgt_label.setStyleSheet("font-weight: 500; font-size: 13px;")
-        lang_row.addWidget(tgt_label)
+        lang_row.addWidget(QLabel("To:"))
         self.target_lang_combo = QComboBox()
         self.populate_languages(self.target_lang_combo)
-        self.target_lang_combo.setToolTip("Select target language for translation")
-        lang_row.addWidget(self.target_lang_combo, 1)
+        self.target_lang_combo.setToolTip("Target language")
+        lang_row.addWidget(self.target_lang_combo, 2)
+        basic_layout.addLayout(lang_row)
         
-        config_layout.addLayout(lang_row)
-        
+        # Engine and Mode
         engine_row = QHBoxLayout()
-        engine_row.setSpacing(10)
-        
-        engine_label = QLabel("Engine:")
-        engine_label.setStyleSheet("font-weight: 500; font-size: 13px;")
-        engine_row.addWidget(engine_label)
+        engine_row.setSpacing(8)
+        engine_row.addWidget(QLabel("Engine:"))
         self.engine_combo = QComboBox()
         self.engine_combo.addItem("🌐 Google", RecognitionEngine.GOOGLE.value)
-        self.engine_combo.addItem("💻 Vosk (Offline)", RecognitionEngine.VOSK.value)
-        self.engine_combo.addItem("🤖 Whisper (AI)", RecognitionEngine.WHISPER.value)
+        self.engine_combo.addItem("💻 Vosk", RecognitionEngine.VOSK.value)
+        self.engine_combo.addItem("🤖 Whisper", RecognitionEngine.WHISPER.value)
         self.engine_combo.currentIndexChanged.connect(self.on_engine_changed)
-        self.engine_combo.setToolTip("Speech recognition engine:\n• Google: Fast, online required\n• Vosk: Offline, download required\n• Whisper: AI-powered, GPU recommended")
         engine_row.addWidget(self.engine_combo, 1)
         
-        mode_label = QLabel("Mode:")
-        mode_label.setStyleSheet("font-weight: 500; font-size: 13px;")
-        engine_row.addWidget(mode_label)
+        engine_row.addWidget(QLabel("Mode:"))
         self.mode_combo = QComboBox()
-        self.mode_combo.addItems([
-            "Standard (After Completion)",
-            "Simultaneous (Real-time)",
-            "Universal (Auto Language)",
-            "Voice Duplication"
-        ])
+        self.mode_combo.addItems(["Standard", "Simultaneous", "Universal", "Voice Clone"])
         self.mode_combo.currentTextChanged.connect(self.on_translation_mode_changed)
-        self.mode_combo.setToolTip(
-            "Translation mode:\n"
-            "• Standard: Translates after sentence completion\n"
-            "• Simultaneous: Near real-time translation and dubbing\n"
-            "• Universal: Captures and translates any language in real-time\n"
-            "• Voice Duplication: Translates while preserving your voice"
-        )
         engine_row.addWidget(self.mode_combo, 1)
+        basic_layout.addLayout(engine_row)
         
-        config_layout.addLayout(engine_row)
+        basic_layout.addStretch()
+        config_tabs.addTab(basic_tab, "🌐 Basic")
         
-        # GPU toggle
-        gpu_row = QHBoxLayout()
-        self.gpu_checkbox = QCheckBox("🚀 Enable GPU Acceleration (10-20x faster)")
+        # Tab 2: Advanced Settings
+        adv_tab = QWidget()
+        adv_layout = QVBoxLayout(adv_tab)
+        adv_layout.setSpacing(8)
+        adv_layout.setContentsMargins(10, 10, 10, 10)
+        
+        self.gpu_checkbox = QCheckBox("🚀 GPU Acceleration")
         self.gpu_checkbox.setChecked(config.get("use_gpu", True))
         self.gpu_checkbox.setEnabled(gpu_manager.is_gpu_available())
         self.gpu_checkbox.stateChanged.connect(self.on_gpu_toggled)
-        self.gpu_checkbox.setStyleSheet("font-size: 13px; font-weight: 500;")
-        if gpu_manager.is_gpu_available():
-            self.gpu_checkbox.setToolTip(f"GPU detected: {gpu_manager.device_name}\nToggle to enable/disable GPU acceleration")
-        else:
-            self.gpu_checkbox.setToolTip("No GPU detected. Install CUDA (NVIDIA) or use Apple Silicon for GPU acceleration.")
-        gpu_row.addWidget(self.gpu_checkbox)
+        adv_layout.addWidget(self.gpu_checkbox)
         
-        if not gpu_manager.is_gpu_available():
-            gpu_row.addWidget(QLabel("(No GPU detected)"))
-        
-        gpu_row.addStretch()
-        config_layout.addLayout(gpu_row)
-        
-        # Conversation Mode toggle
-        conv_row = QHBoxLayout()
-        self.conversation_mode_checkbox = QCheckBox("🗣️ Conversation Mode (Bidirectional Auto-Translate)")
+        self.conversation_mode_checkbox = QCheckBox("🗣️ Conversation Mode")
         self.conversation_mode_checkbox.setChecked(config.get("conversation_mode_enabled", False))
         self.conversation_mode_checkbox.stateChanged.connect(self.on_conversation_mode_toggled)
-        self.conversation_mode_checkbox.setStyleSheet("font-size: 13px; font-weight: 500; color: #82c8ff;")
-        self.conversation_mode_checkbox.setToolTip(
-            "Conversation Mode: Auto-detects language and translates bidirectionally.\n"
-            "• If Language A detected → translates to Language B\n"
-            "• If Language B detected → translates to Language A\n"
-            "Perfect for real conversations between two people!"
-        )
-        conv_row.addWidget(self.conversation_mode_checkbox)
+        self.conversation_mode_checkbox.setToolTip("Bidirectional auto-translation")
+        adv_layout.addWidget(self.conversation_mode_checkbox)
         
-        self.auto_mode_checkbox = QCheckBox("Auto (Any Language Pair)")
+        self.auto_mode_checkbox = QCheckBox("   ↳ Auto (Any Language)")
         self.auto_mode_checkbox.setChecked(config.get("conversation_auto_mode", False))
         self.auto_mode_checkbox.stateChanged.connect(self.on_auto_mode_toggled)
-        self.auto_mode_checkbox.setStyleSheet("font-size: 12px; font-weight: 500;")
-        self.auto_mode_checkbox.setToolTip("Auto mode: Works with any language pair automatically detected")
-        conv_row.addWidget(self.auto_mode_checkbox)
+        adv_layout.addWidget(self.auto_mode_checkbox)
         
-        conv_row.addStretch()
-        config_layout.addLayout(conv_row)
-        
-        # Contextual features toggle
-        context_row = QHBoxLayout()
-        self.slang_checkbox = QCheckBox("💬 Slang Translation & Autocorrect")
+        self.slang_checkbox = QCheckBox("💬 Slang & Autocorrect")
         self.slang_checkbox.setChecked(config.get("slang_translation_enabled", True))
         self.slang_checkbox.stateChanged.connect(self.on_slang_toggled)
-        self.slang_checkbox.setStyleSheet("font-size: 13px; font-weight: 500;")
-        self.slang_checkbox.setToolTip(
-            "Enable slang translation and contextual autocorrect:\n"
-            "• Expands abbreviations (lol → laughing out loud)\n"
-            "• Translates internet slang in any language\n"
-            "• Contextual autocorrect for better translation"
-        )
-        context_row.addWidget(self.slang_checkbox)
-        context_row.addStretch()
-        config_layout.addLayout(context_row)
+        adv_layout.addWidget(self.slang_checkbox)
         
-        self.model_status = QLabel("Ready")
-        config_layout.addWidget(self.model_status)
+        adv_layout.addStretch()
+        config_tabs.addTab(adv_tab, "⚡ Advanced")
         
-        config_group.setLayout(config_layout)
-        main_layout.addWidget(config_group)
+        main_layout.addWidget(config_tabs)
         
         # Input/Output
         io_splitter = QSplitter(Qt.Orientation.Vertical)
@@ -359,110 +309,105 @@ class LiveTranslatorApp(QMainWindow):
         io_splitter.addWidget(output_widget)
         main_layout.addWidget(io_splitter, 3)
         
-        # Controls
+        # Cleaner, better organized controls
         controls = QWidget()
-        controls_layout = QGridLayout(controls)
+        controls_layout = QVBoxLayout(controls)
+        controls_layout.setSpacing(10)
         
-        self.listen_btn = QPushButton("🎤 Start Continuous Listening")
+        # Primary control - bigger and prominent
+        self.listen_btn = QPushButton("🎤 Start Listening")
+        self.listen_btn.setMinimumHeight(50)
         self.listen_btn.clicked.connect(self.toggle_listening)
         self.listen_btn.setStyleSheet("""
             QPushButton {
                 font-weight: 600;
-                padding: 14px 24px;
+                padding: 12px 20px;
                 font-size: 15px;
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #4CAF50, stop:1 #388E3C);
                 color: white;
                 border: none;
-                border-radius: 12px;
-                letter-spacing: 0.5px;
+                border-radius: 10px;
             }
             QPushButton:hover {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #5FD068, stop:1 #4CAF50);
-                padding: 14px 24px;
-            }
-            QPushButton:pressed {
-                background: #2E7D32;
             }
         """)
-        self.listen_btn.setToolTip("Start continuous speech recognition (Ctrl+L)")
-        controls_layout.addWidget(self.listen_btn, 0, 0, 1, 2)
+        self.listen_btn.setToolTip("Start/stop continuous speech recognition (Ctrl+L)")
+        controls_layout.addWidget(self.listen_btn)
+        
+        # Secondary controls - organized in rows
+        row1 = QHBoxLayout()
+        row1.setSpacing(8)
         
         self.translate_btn = QPushButton("🔄 Translate")
         self.translate_btn.clicked.connect(self.translate_manual)
-        self.translate_btn.setToolTip("Manually translate the input text (Ctrl+T)")
-        self.translate_btn.setStyleSheet("padding: 12px 20px; font-size: 14px; font-weight: 500;")
-        controls_layout.addWidget(self.translate_btn, 0, 2, 1, 2)
+        self.translate_btn.setToolTip("Manually translate (Ctrl+T)")
+        row1.addWidget(self.translate_btn)
         
         self.speak_btn = QPushButton("🔊 Speak")
         self.speak_btn.clicked.connect(self.speak_output)
-        self.speak_btn.setToolTip("Speak the translated text aloud (Ctrl+S)")
-        self.speak_btn.setStyleSheet("padding: 10px 18px; font-size: 13px; font-weight: 500;")
-        controls_layout.addWidget(self.speak_btn, 1, 0)
+        self.speak_btn.setToolTip("Speak output (Ctrl+S)")
+        row1.addWidget(self.speak_btn)
         
         self.stop_btn = QPushButton("🔇 Stop")
         self.stop_btn.clicked.connect(lambda: tts_manager.stop())
-        self.stop_btn.setToolTip("Stop current text-to-speech playback")
-        self.stop_btn.setStyleSheet("padding: 10px 18px; font-size: 13px; font-weight: 500;")
-        controls_layout.addWidget(self.stop_btn, 1, 1)
+        self.stop_btn.setToolTip("Stop TTS playback")
+        row1.addWidget(self.stop_btn)
+        
+        controls_layout.addLayout(row1)
+        
+        row2 = QHBoxLayout()
+        row2.setSpacing(8)
         
         self.source_btn = QPushButton("🎧 System Audio")
         self.source_btn.clicked.connect(self.toggle_source)
-        self.source_btn.setToolTip("Switch between microphone and system audio input")
-        self.source_btn.setStyleSheet("padding: 10px 18px; font-size: 13px; font-weight: 500;")
-        controls_layout.addWidget(self.source_btn, 1, 2)
+        self.source_btn.setToolTip("Switch audio input source")
+        row2.addWidget(self.source_btn)
         
         self.overlay_btn = QPushButton("👁️ Overlay")
         self.overlay_btn.clicked.connect(self.toggle_overlay)
-        self.overlay_btn.setToolTip("Toggle the resizable translation overlay (Ctrl+O)\nDrag corners to resize, drag center to move")
-        self.overlay_btn.setStyleSheet("padding: 10px 18px; font-size: 13px; font-weight: 500;")
-        controls_layout.addWidget(self.overlay_btn, 1, 3)
+        self.overlay_btn.setToolTip("Toggle overlay (Ctrl+O)")
+        row2.addWidget(self.overlay_btn)
         
-        self.auto_speak = QCheckBox("🔊 Auto-speak translations")
+        controls_layout.addLayout(row2)
+        
+        # Options row
+        options_row = QHBoxLayout()
+        options_row.setSpacing(15)
+        
+        self.auto_speak = QCheckBox("🔊 Auto-speak")
         self.auto_speak.setChecked(config.get("auto_speak", True))
         self.auto_speak.stateChanged.connect(lambda: config.set("auto_speak", self.auto_speak.isChecked()))
-        self.auto_speak.setToolTip("Automatically speak translated text using text-to-speech")
-        self.auto_speak.setStyleSheet("font-size: 13px; font-weight: 500;")
-        controls_layout.addWidget(self.auto_speak, 2, 0, 1, 2)
+        options_row.addWidget(self.auto_speak)
         
-        self.show_conf = QCheckBox("🎯 Show confidence scores")
+        self.show_conf = QCheckBox("🎯 Show confidence")
         self.show_conf.setChecked(config.get("show_confidence", True))
         self.show_conf.stateChanged.connect(lambda: config.set("show_confidence", self.show_conf.isChecked()))
-        self.show_conf.setToolTip("Display confidence scores for speech recognition and translation")
-        self.show_conf.setStyleSheet("font-size: 13px; font-weight: 500;")
-        controls_layout.addWidget(self.show_conf, 2, 2, 1, 2)
+        options_row.addWidget(self.show_conf)
+        
+        options_row.addStretch()
+        
+        # Word count indicator
+        self.word_count = QLabel("0 words")
+        self.word_count.setStyleSheet("color: #9aa0a6; font-size: 12px;")
+        options_row.addWidget(self.word_count)
+        
+        controls_layout.addLayout(options_row)
         
         main_layout.addWidget(controls)
         
-        # Professional history section
-        history_group = QGroupBox("📜 Translation History")
-        history_group.setToolTip("View, search, and export your translation history")
+        # Compact history section
+        history_group = QGroupBox("📜 History")
         history_layout = QVBoxLayout()
+        history_layout.setSpacing(8)
         
-        history_controls = QHBoxLayout()
-        history_controls.setSpacing(10)
-        
+        # Simplified search bar
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("🔍 Search translation history... (Ctrl+F)")
+        self.search_input.setPlaceholderText("🔍 Search history... (Ctrl+F)")
         self.search_input.textChanged.connect(self.search_history)
-        self.search_input.setToolTip("Search through your translation history by source or translated text")
-        self.search_input.setStyleSheet("padding: 10px; font-size: 13px;")
-        history_controls.addWidget(self.search_input)
-        
-        self.export_btn = QPushButton("💾 Export")
-        self.export_btn.clicked.connect(self.export_history)
-        self.export_btn.setToolTip("Export translation history to text file (Ctrl+E)")
-        self.export_btn.setStyleSheet("padding: 9px 16px; font-size: 13px; font-weight: 500;")
-        history_controls.addWidget(self.export_btn)
-        
-        self.clear_btn = QPushButton("🗑️ Clear")
-        self.clear_btn.clicked.connect(self.clear_history)
-        self.clear_btn.setToolTip("Clear all translation history (cannot be undone)")
-        self.clear_btn.setStyleSheet("padding: 9px 16px; font-size: 13px; font-weight: 500;")
-        history_controls.addWidget(self.clear_btn)
-        
-        history_layout.addLayout(history_controls)
+        history_layout.addWidget(self.search_input)
         
         self.history_list = QListWidget()
         self.history_list.itemDoubleClicked.connect(self.load_history_item)
@@ -471,7 +416,7 @@ class LiveTranslatorApp(QMainWindow):
         history_group.setLayout(history_layout)
         main_layout.addWidget(history_group, 1)
         
-        self.statusBar().showMessage("🚀 Ready - Professional Edition v3.5 | Material Design 3 UI")
+        self.statusBar().showMessage("🚀 Ready - Professional Edition v4.5")
         self.refresh_history()
         self.setup_shortcuts()
     
@@ -771,10 +716,10 @@ Enjoy your professional-grade translator! 🚀
     def on_translation_mode_changed(self, mode_text: str):
         """Handle translation mode change"""
         mode_map = {
-            "Standard (After Completion)": TranslationMode.STANDARD,
-            "Simultaneous (Real-time)": TranslationMode.SIMULTANEOUS,
-            "Universal (Auto Language)": TranslationMode.UNIVERSAL,
-            "Voice Duplication": TranslationMode.VOICE_DUPLICATION
+            "Standard": TranslationMode.STANDARD,
+            "Simultaneous": TranslationMode.SIMULTANEOUS,
+            "Universal": TranslationMode.UNIVERSAL,
+            "Voice Clone": TranslationMode.VOICE_DUPLICATION
         }
         
         selected_mode = mode_map.get(mode_text, TranslationMode.STANDARD)
@@ -787,7 +732,7 @@ Enjoy your professional-grade translator! 🚀
             else:
                 QMessageBox.information(
                     self,
-                    "Voice Duplication",
+                    "Voice Clone Mode",
                     "No voice model selected. Please add and activate a voice model in Voice Models manager."
                 )
         

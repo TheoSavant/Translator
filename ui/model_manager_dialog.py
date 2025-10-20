@@ -3,7 +3,7 @@ import logging
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
-from config.constants import WHISPER_MODELS, VOSK_MODELS
+from config.constants import WHISPER_MODELS, VOSK_MODELS, VOSK_MODELS_DIR
 from models import vosk_manager, whisper_manager
 
 log = logging.getLogger("Translator")
