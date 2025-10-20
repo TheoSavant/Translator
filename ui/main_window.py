@@ -9,11 +9,13 @@ from config import config
 from config.constants import RecognitionEngine
 from database import db
 from core import translator, tts_manager, ContinuousSpeechRecognitionThread
+from core import conversation_mode, contextual_engine, offline_translator
 from models import whisper_manager
-from utils import audio_device_manager
+from utils import audio_device_manager, gpu_manager
 from .overlay import ResizableOverlay
 from .settings_dialog import SettingsDialog
 from .model_manager_dialog import ModelManagerDialog
+import time
 
 log = logging.getLogger("Translator")
 
@@ -229,6 +231,46 @@ class LiveTranslatorApp(QMainWindow):
         
         gpu_row.addStretch()
         config_layout.addLayout(gpu_row)
+        
+        # Conversation Mode toggle
+        conv_row = QHBoxLayout()
+        self.conversation_mode_checkbox = QCheckBox("🗣️ Conversation Mode (Bidirectional Auto-Translate)")
+        self.conversation_mode_checkbox.setChecked(config.get("conversation_mode_enabled", False))
+        self.conversation_mode_checkbox.stateChanged.connect(self.on_conversation_mode_toggled)
+        self.conversation_mode_checkbox.setStyleSheet("font-size: 13px; font-weight: 500; color: #82c8ff;")
+        self.conversation_mode_checkbox.setToolTip(
+            "Conversation Mode: Auto-detects language and translates bidirectionally.\n"
+            "• If Language A detected → translates to Language B\n"
+            "• If Language B detected → translates to Language A\n"
+            "Perfect for real conversations between two people!"
+        )
+        conv_row.addWidget(self.conversation_mode_checkbox)
+        
+        self.auto_mode_checkbox = QCheckBox("Auto (Any Language Pair)")
+        self.auto_mode_checkbox.setChecked(config.get("conversation_auto_mode", False))
+        self.auto_mode_checkbox.stateChanged.connect(self.on_auto_mode_toggled)
+        self.auto_mode_checkbox.setStyleSheet("font-size: 12px; font-weight: 500;")
+        self.auto_mode_checkbox.setToolTip("Auto mode: Works with any language pair automatically detected")
+        conv_row.addWidget(self.auto_mode_checkbox)
+        
+        conv_row.addStretch()
+        config_layout.addLayout(conv_row)
+        
+        # Contextual features toggle
+        context_row = QHBoxLayout()
+        self.slang_checkbox = QCheckBox("💬 Slang Translation & Autocorrect")
+        self.slang_checkbox.setChecked(config.get("slang_translation_enabled", True))
+        self.slang_checkbox.stateChanged.connect(self.on_slang_toggled)
+        self.slang_checkbox.setStyleSheet("font-size: 13px; font-weight: 500;")
+        self.slang_checkbox.setToolTip(
+            "Enable slang translation and contextual autocorrect:\n"
+            "• Expands abbreviations (lol → laughing out loud)\n"
+            "• Translates internet slang in any language\n"
+            "• Contextual autocorrect for better translation"
+        )
+        context_row.addWidget(self.slang_checkbox)
+        context_row.addStretch()
+        config_layout.addLayout(context_row)
         
         self.model_status = QLabel("Ready")
         config_layout.addWidget(self.model_status)
@@ -552,6 +594,18 @@ Enjoy your professional-grade translator! 🚀
         idx = self.engine_combo.findData(engine)
         if idx >= 0:
             self.engine_combo.setCurrentIndex(idx)
+        
+        # Initialize conversation mode
+        conv_enabled = config.get("conversation_mode_enabled", False)
+        auto_mode = config.get("conversation_auto_mode", False)
+        if conv_enabled:
+            src_lang = src if src != "auto" else "en"
+            conversation_mode.enable(src_lang, tgt, auto_mode)
+        
+        # Initialize translator contextual features
+        slang_enabled = config.get("slang_translation_enabled", True)
+        translator.use_slang_expansion = slang_enabled
+        translator.use_autocorrect = slang_enabled
     
     def on_engine_changed(self):
         engine_val = self.engine_combo.currentData()
@@ -589,6 +643,56 @@ Enjoy your professional-grade translator! 🚀
             self.statusBar().showMessage(f"✅ GPU acceleration ENABLED - Using {device.upper()} (10-20x faster!)", 4000)
         else:
             self.statusBar().showMessage(f"⚠️ GPU acceleration disabled - Using {device.upper()}", 4000)
+    
+    def on_conversation_mode_toggled(self):
+        """Handle conversation mode toggle"""
+        enabled = self.conversation_mode_checkbox.isChecked()
+        config.set("conversation_mode_enabled", enabled)
+        
+        if enabled:
+            # Get current language settings
+            src_lang = self.source_lang_combo.currentData()
+            tgt_lang = self.target_lang_combo.currentData()
+            
+            # Use 'en' as default if auto is selected
+            if src_lang == "auto":
+                src_lang = "en"
+            
+            # Enable conversation mode
+            auto_mode = self.auto_mode_checkbox.isChecked()
+            conversation_mode.enable(src_lang, tgt_lang, auto_mode)
+            
+            self.statusBar().showMessage(
+                f"🗣️ Conversation Mode ENABLED: {src_lang} ↔ {tgt_lang} "
+                f"({'Auto' if auto_mode else 'Bidirectional'})", 4000
+            )
+        else:
+            conversation_mode.disable()
+            self.statusBar().showMessage("Conversation Mode disabled", 3000)
+    
+    def on_auto_mode_toggled(self):
+        """Handle auto mode toggle for conversation mode"""
+        auto_mode = self.auto_mode_checkbox.isChecked()
+        config.set("conversation_auto_mode", auto_mode)
+        
+        if conversation_mode.enabled:
+            conversation_mode.auto_mode = auto_mode
+            mode_text = "Auto (Any Language)" if auto_mode else "Bidirectional"
+            self.statusBar().showMessage(f"Conversation Mode: {mode_text}", 3000)
+    
+    def on_slang_toggled(self):
+        """Handle slang translation and autocorrect toggle"""
+        enabled = self.slang_checkbox.isChecked()
+        config.set("slang_translation_enabled", enabled)
+        
+        # Update translator settings
+        translator.use_slang_expansion = enabled
+        translator.use_autocorrect = enabled
+        
+        if enabled:
+            self.statusBar().showMessage("💬 Slang translation & autocorrect ENABLED", 3000)
+        else:
+            self.statusBar().showMessage("Slang translation & autocorrect disabled", 3000)
     
     def show_models(self):
         dialog = ModelManagerDialog(self)
@@ -800,16 +904,20 @@ Enjoy your professional-grade translator! 🚀
             self.translate_phrase_async(phrase, confidence)
     
     def translate_phrase_async(self, phrase, speech_conf=1.0):
-        """Async translation - doesn't block recognition"""
+        """Async translation - doesn't block recognition, with conversation mode support"""
         src_lang = self.source_lang_combo.currentData()
         tgt_lang = self.target_lang_combo.currentData()
         
+        # Auto-detect if needed
         if src_lang == "auto":
             try:
                 detections = detect_langs(phrase)
                 src_lang = detections[0].lang if detections else "en"
             except:
                 src_lang = "en"
+        
+        # Conversation mode will override src/tgt in the translator if enabled
+        # So we just pass the current settings and let conversation_mode handle it
         
         def on_translation_complete(result):
             translated, duration, trans_conf = result

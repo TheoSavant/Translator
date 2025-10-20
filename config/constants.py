@@ -57,7 +57,12 @@ DEFAULT_CONFIG = {
     "animation_duration": 250,
     "live_captions_mode": True,
     "subtitle_lines": 3,
-    "subtitle_update_delay": 8  # milliseconds between word updates
+    "subtitle_update_delay": 8,  # milliseconds between word updates
+    # Enhanced features (v4.0)
+    "conversation_mode_enabled": False,  # Bidirectional auto-translation
+    "conversation_auto_mode": False,  # Auto-detect any language pair
+    "slang_translation_enabled": True,  # Translate slang and abbreviations
+    "contextual_translation": True,  # Use contextual awareness
 }
 
 # Required packages for dependency checking
