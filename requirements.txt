@@ -1,0 +1,35 @@
+# Universal Live Translator - Requirements
+# Professional real-time translation application with GPU acceleration
+
+# UI Framework
+PyQt6>=6.4.0
+
+# Text-to-Speech
+pyttsx3>=2.90
+gTTS>=2.3.0
+
+# Translation Engines
+argostranslate>=1.8.0
+deep-translator>=1.11.0
+
+# Speech Recognition
+SpeechRecognition>=3.10.0
+vosk>=0.3.45
+openai-whisper>=20230314
+
+# Audio Processing
+sounddevice>=0.4.6
+pyaudio>=0.2.13
+pydub>=0.25.1
+simpleaudio>=1.0.4
+scipy>=1.10.0
+
+# Language Detection
+langdetect>=1.0.9
+
+# Machine Learning / GPU Support
+torch>=2.0.0
+numpy>=1.24.0
+
+# Utilities
+requests>=2.28.0
