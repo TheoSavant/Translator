@@ -4,9 +4,11 @@ from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from config import config
-from config.constants import WHISPER_MODELS, RecognitionEngine
+from config.constants import WHISPER_MODELS, RecognitionEngine, CONFIG_FILE, DB_FILE, AUDIO_DIR, VOSK_MODELS_DIR
 from deep_translator.constants import GOOGLE_LANGUAGES_TO_CODES
-from models import vosk_manager
+from models import vosk_manager, whisper_manager
+from utils import audio_device_manager, gpu_manager
+from core import tts_manager
 
 log = logging.getLogger("Translator")
 
