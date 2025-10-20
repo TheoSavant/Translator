@@ -1,6 +1,6 @@
-# 🌍 Universal Live Translator — Professional Edition v3.5
+# 🌍 Universal Live Translator — Professional Edition v4.0 ⚡ ENHANCED
 
-A professional, GPU-accelerated real-time translation application with Netflix/Google-level UI design and continuous speech recognition.
+A professional, GPU-accelerated real-time translation application with Netflix/Google-level UI design, **contextual translation**, **conversation mode**, **slang support**, and **advanced offline capabilities**.
 
 ## ✨ Features
 
@@ -19,12 +19,23 @@ A professional, GPU-accelerated real-time translation application with Netflix/G
 - **Microphone & System Audio** capture support
 - **GPU acceleration** (CUDA/MPS) for 10-20x faster processing
 
-### 🌐 Translation
+### 🌐 Translation (ENHANCED!)
 - **Multi-level caching** for instant repeated translations
 - **Online & Offline** modes (Google Translate + Argos)
 - **Auto language detection**
 - **90+ languages** supported
 - **Translation history** with search and export
+- **🆕 Contextual Translation** - Understands context for better accuracy
+- **🆕 Slang Translation** - Translates internet slang, abbreviations, and casual speech
+- **🆕 Contextual Autocorrect** - Fixes typing errors intelligently
+- **🆕 Formality Matching** - Adapts formal/informal tone automatically
+
+### 🗣️ Conversation Mode (NEW!)
+- **Bidirectional Auto-Translation** - Speak any of two languages, auto-translates to the other
+- **Auto Mode** - Works with any detected language pair automatically
+- **Perfect for conversations** between people speaking different languages
+- **Smart Detection** - High-confidence language detection with context awareness
+- **Use Cases**: Meetings, language learning, customer service, travel
 
 ### 🔊 Text-to-Speech
 - **Auto-speak** translated text
@@ -36,6 +47,16 @@ A professional, GPU-accelerated real-time translation application with Netflix/G
 - **ThreadPoolExecutor** for non-blocking operations
 - **Real-time performance monitoring**
 - **Optimized memory** and cache management
+- **Enhanced offline caching** - 500-entry memory cache
+- **Contextual processing** - <5ms overhead for natural translations
+
+### 💬 Slang & Informal Language (NEW!)
+- **200+ slang terms** per language (English, French, Spanish, German)
+- **Internet speak** - lol, omg, btw, brb, etc.
+- **Modern expressions** - lit, fire, savage, sus, bet, etc.
+- **Abbreviations** - gonna, wanna, u, ur, etc.
+- **Auto-expansion** - Slang expanded before translation for accuracy
+- **Easily expandable** - Add your own slang to the database
 
 ## 📦 Installation
 
@@ -94,7 +115,29 @@ Use PulseAudio monitor device (usually available by default)
    - **Google** - Online, accurate, requires internet
    - **Whisper** - Offline, GPU-accelerated, very accurate
    - **Vosk** - Offline, lightweight, fast
-5. **Press Start** - Begin continuous listening and translation
+5. **🆕 Enable Advanced Features** (optional):
+   - ✅ **Conversation Mode** - Bidirectional auto-translation
+   - ✅ **Auto Mode** - Works with any language pair
+   - ✅ **Slang Translation** - Understand and translate slang
+6. **Press Start** - Begin continuous listening and translation
+
+### 🗣️ Conversation Mode Usage
+
+Perfect for real-time conversations between two people:
+
+1. **Enable Conversation Mode** - Check the box in Configuration
+2. **Set Language Pair** - e.g., English ↔ French
+3. **Start Listening** - The app will auto-detect and route:
+   - English detected → Translates to French
+   - French detected → Translates to English
+4. **Optional: Enable Auto Mode** - For any language combination
+
+**Example Use Cases**:
+- International business meetings
+- Language learning with practice partners  
+- Customer support calls
+- Travel and tourism
+- Multilingual family conversations
 
 ### Overlay Features
 

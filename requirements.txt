@@ -1,5 +1,6 @@
 # Universal Live Translator - Requirements
 # Professional real-time translation application with GPU acceleration
+# Enhanced with contextual translation, conversation mode, and advanced offline support
 
 # UI Framework
 PyQt6>=6.4.0
@@ -24,7 +25,7 @@ pydub>=0.25.1
 simpleaudio>=1.0.4
 scipy>=1.10.0
 
-# Language Detection
+# Language Detection (Enhanced for conversation mode)
 langdetect>=1.0.9
 
 # Machine Learning / GPU Support
