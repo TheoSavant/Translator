@@ -43,7 +43,7 @@ ensure_dependencies()
 from PyQt6.QtWidgets import QApplication
 from config.constants import BASE_DIR
 from utils import gpu_manager
-from ui import LiveTranslatorApp
+from ui.main_window_new import LiveTranslatorApp
 
 def main():
     """Main application entry point"""
