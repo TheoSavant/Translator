@@ -27,15 +27,16 @@ def ensure_dependencies():
             print(f"  • {pkg}")
         print(f"\nTotal size: ~500MB (includes PyTorch and Whisper)\n{'='*60}")
         
-        response = input("\nInstall missing packages? (y/n): ").strip().lower()
-        if response == 'y':
-            for pkg in missing:
-                print(f"\n📦 Installing {pkg}...")
+        # Auto-install in non-interactive mode
+        print("Auto-installing missing packages...")
+        for pkg in missing:
+            print(f"\n📦 Installing {pkg}...")
+            try:
                 subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", pkg])
-            print("\n✅ All dependencies installed!\n")
-        else:
-            print("\n❌ Cannot proceed without packages. Exiting...")
-            sys.exit(1)
+            except subprocess.CalledProcessError as e:
+                print(f"❌ Failed to install {pkg}: {e}")
+                continue
+        print("\n✅ Dependencies installation completed!\n")
 
 def is_online():
     """Check if internet connection is available"""

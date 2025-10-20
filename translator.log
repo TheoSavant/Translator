@@ -1,0 +1,14 @@
+2025-10-20 18:12:10,377 - WARNING - CUDA not detected. GPU acceleration disabled.
+2025-10-20 18:12:22,158 - WARNING - CUDA not detected. GPU acceleration disabled.
+2025-10-20 18:12:41,158 - WARNING - CUDA not detected. GPU acceleration disabled.
+2025-10-20 18:12:50,640 - WARNING - CUDA not detected. GPU acceleration disabled.
+2025-10-20 18:13:05,721 - WARNING - CUDA not detected. GPU acceleration disabled.
+2025-10-20 18:13:54,341 - WARNING - CUDA not detected. GPU acceleration disabled.
+2025-10-20 18:14:52,529 - WARNING - CUDA not detected. GPU acceleration disabled.
+2025-10-20 18:14:54,480 - INFO - WhisperModelManager device set to: cpu (requested use_gpu=True)
+2025-10-20 18:14:54,481 - INFO - GPU available: False, CUDA: False, MPS: False
+2025-10-20 18:14:54,481 - INFO - WhisperModelManager initialized with device: cpu (use_gpu=True)
+2025-10-20 18:14:54,552 - INFO - Argos Translate initialized. Installed packages: 4
+2025-10-20 18:14:54,557 - INFO - Total RVC models loaded: 0
+2025-10-20 18:14:54,573 - INFO - Scanning for running communication platforms...
+2025-10-20 18:14:54,573 - INFO - Platform integration ready for: Discord, Zoom, Teams, Meet, Skype
