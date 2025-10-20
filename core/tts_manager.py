@@ -1,4 +1,4 @@
-"""Text-to-Speech management"""
+"""Text-to-Speech management with RVC voice duplication support"""
 import os
 import queue
 import threading
@@ -15,14 +15,24 @@ from utils.helpers import is_online
 
 log = logging.getLogger("Translator")
 
+# Import voice duplication if available
+try:
+    from .voice_duplication import voice_duplication
+    HAS_VOICE_DUPLICATION = True
+except ImportError:
+    HAS_VOICE_DUPLICATION = False
+    log.warning("Voice duplication not available")
+
 class TTSManager:
-    """Manages text-to-speech with queueing and volume control"""
+    """Manages text-to-speech with queueing, volume control, and voice duplication"""
     def __init__(self):
         self.queue = queue.Queue()
         self.running = True
         self.current = None
         self.volume = config.get("volume", 0.8)
         self.temp_files = []
+        self.use_voice_duplication = False
+        self.custom_tts_mode = False  # Use custom RVC models
         threading.Thread(target=self._worker, daemon=True).start()
     
     def _worker(self):
@@ -75,6 +85,24 @@ class TTSManager:
     def set_volume(self, volume):
         """Set volume (0.0 to 1.0)"""
         self.volume = max(0.0, min(1.0, volume))
+    
+    def enable_voice_duplication(self, enable: bool = True):
+        """Enable or disable voice duplication mode"""
+        if enable and not HAS_VOICE_DUPLICATION:
+            log.warning("Voice duplication requested but not available")
+            return False
+        self.use_voice_duplication = enable
+        log.info(f"Voice duplication {'enabled' if enable else 'disabled'}")
+        return True
+    
+    def enable_custom_tts(self, enable: bool = True):
+        """Enable or disable custom RVC TTS models"""
+        self.custom_tts_mode = enable
+        log.info(f"Custom TTS mode {'enabled' if enable else 'disabled'}")
+    
+    def is_voice_duplication_enabled(self) -> bool:
+        """Check if voice duplication is enabled"""
+        return self.use_voice_duplication and HAS_VOICE_DUPLICATION
     
     def shutdown(self):
         """Shutdown TTS manager"""

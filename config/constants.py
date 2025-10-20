@@ -63,6 +63,18 @@ DEFAULT_CONFIG = {
     "conversation_auto_mode": False,  # Auto-detect any language pair
     "slang_translation_enabled": True,  # Translate slang and abbreviations
     "contextual_translation": True,  # Use contextual awareness
+    # Voice duplication and translation modes (v4.5)
+    "translation_mode": "standard",  # standard, simultaneous, universal, voice_duplication
+    "voice_duplication_enabled": False,  # Enable RVC voice cloning
+    "active_rvc_model": None,  # Current active RVC model name
+    "rvc_pitch_shift": 0,  # Voice pitch adjustment (-12 to 12)
+    "rvc_index_rate": 0.75,  # Index search ratio (0.0 to 1.0)
+    # Platform integrations
+    "enabled_platforms": [],  # List of enabled platform names (discord, zoom, teams, etc.)
+    "virtual_microphone_enabled": False,  # Use virtual microphone for output
+    # Gaming and real-time features
+    "text_translation_overlay": False,  # Show text translation overlay for gaming
+    "real_time_dubbing": False,  # Enable real-time voice dubbing
 }
 
 # Required packages for dependency checking

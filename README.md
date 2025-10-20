@@ -1,8 +1,36 @@
-# 🌍 Universal Live Translator — Professional Edition v4.0 ⚡ ENHANCED
+# 🌍 Universal Live Translator — Professional Edition v4.5 ⚡ VOICE DUPLICATION
 
-A professional, GPU-accelerated real-time translation application with Netflix/Google-level UI design, **contextual translation**, **conversation mode**, **slang support**, and **advanced offline capabilities**.
+A versatile, GPU-accelerated real-time translation application with **voice duplication mode**, **multiple translation modes**, **platform integrations** (Discord, Zoom), **custom TTS models**, and **advanced features** for gamers, creators, professionals, and travelers.
 
 ## ✨ Features
+
+### 🎙️ Voice Duplication & Translation Modes (NEW!)
+
+#### Voice Duplication Mode
+- **Translate with your voice**: Translates your speech into any language while maintaining your voice qualities
+- **Custom RVC models**: Upload and use your own PTH files, index files, and voice models
+- **Easy model management**: Simple UI for uploading and managing voice duplication models
+- **Professional quality**: Supports index files and config files for optimal voice quality
+
+#### Multiple Translation Modes
+1. **Standard Mode**: Translates sentences after they are completed (best for accuracy)
+2. **Simultaneous Mode**: Near real-time translation and dubbing for quick communications
+3. **Universal Mode**: Captures audio and translates in real-time to any language
+4. **Voice Duplication Mode**: Translates while preserving your unique voice characteristics
+
+#### Platform Integrations
+- **Discord**: Voice and text translation with voice duplication support
+- **Zoom**: Real-time translation for meetings with voice duplication
+- **Microsoft Teams**: Professional meeting translation
+- **Google Meet**: Seamless translation integration
+- **Slack**: Text translation for team communication
+- **Skype**: Voice and text translation for calls
+
+#### Gaming & Real-Time Features
+- **Text Translation Overlay**: In-game text translation for gaming
+- **Real-Time Dubbing**: Instant voice dubbing during conversations
+- **Low-latency mode**: Optimized for gaming and streaming
+- **Customizable hotkeys**: Control translation without leaving your game
 
 ### 🎨 Professional UI
 - **Material Design 3** glassmorphic overlay with smooth animations
@@ -30,12 +58,31 @@ A professional, GPU-accelerated real-time translation application with Netflix/G
 - **🆕 Contextual Autocorrect** - Fixes typing errors intelligently
 - **🆕 Formality Matching** - Adapts formal/informal tone automatically
 
-### 🗣️ Conversation Mode (NEW!)
+### 🗣️ Conversation Mode
 - **Bidirectional Auto-Translation** - Speak any of two languages, auto-translates to the other
 - **Auto Mode** - Works with any detected language pair automatically
 - **Perfect for conversations** between people speaking different languages
 - **Smart Detection** - High-confidence language detection with context awareness
-- **Use Cases**: Meetings, language learning, customer service, travel
+- **Use Cases**: Meetings, language learning, customer service, travel, gaming
+
+### 🎮 For Gamers & Streamers
+- **In-game translation**: Communicate with international teammates
+- **Streaming support**: Real-time translation for international audiences
+- **Discord integration**: Seamless voice chat translation
+- **Low latency**: Optimized for real-time gaming communication
+- **Customizable overlays**: Transparent, resizable translation display
+
+### 💼 For Professionals
+- **Meeting integrations**: Zoom, Teams, Google Meet support
+- **Voice duplication**: Maintain professional voice presence in any language
+- **Offline mode**: Secure translation for confidential meetings
+- **High accuracy**: Contextual translation for business terminology
+
+### ✈️ For Travelers
+- **Universal mode**: Translate any language in real-time
+- **Offline support**: Works without internet connection
+- **Voice preservation**: Keep your voice qualities when speaking foreign languages
+- **Quick conversations**: Simultaneous mode for instant communication
 
 ### 🔊 Text-to-Speech
 - **Auto-speak** translated text
@@ -108,18 +155,48 @@ Use PulseAudio monitor device (usually available by default)
 
 1. **Start the application** - The main window and overlay will appear
 2. **Select languages** - Choose source and target languages from dropdowns
-3. **Choose input mode**:
+3. **Choose translation mode**:
+   - 📝 **Standard** - Translates after sentence completion
+   - ⚡ **Simultaneous** - Near real-time translation
+   - 🌍 **Universal** - Auto-detects and translates any language
+   - 🎙️ **Voice Duplication** - Translates while preserving your voice
+4. **Choose input mode**:
    - 🎙️ **Microphone** - Capture speech from microphone
    - 🎧 **System Audio** - Capture audio from applications (music, videos, calls)
-4. **Select recognition engine**:
+5. **Select recognition engine**:
    - **Google** - Online, accurate, requires internet
    - **Whisper** - Offline, GPU-accelerated, very accurate
    - **Vosk** - Offline, lightweight, fast
-5. **🆕 Enable Advanced Features** (optional):
+6. **🆕 Enable Advanced Features** (optional):
    - ✅ **Conversation Mode** - Bidirectional auto-translation
    - ✅ **Auto Mode** - Works with any language pair
    - ✅ **Slang Translation** - Understand and translate slang
-6. **Press Start** - Begin continuous listening and translation
+   - ✅ **Voice Duplication** - Use custom RVC models
+7. **Press Start** - Begin continuous listening and translation
+
+### Voice Duplication Setup
+
+1. **Click "🎙️ Voice Models"** in the main window
+2. **Add a new model**:
+   - Click "➕ Add New Model"
+   - Enter a model name
+   - Select PTH file (required)
+   - Select index file (optional, recommended)
+   - Select config file (optional)
+3. **Activate the model** - Select and click "✅ Activate Selected"
+4. **Select Voice Duplication mode** in the mode dropdown
+5. **Start translating** with your voice preserved!
+
+### Platform Integration Setup
+
+1. **Click "🔗 Platforms"** in the main window
+2. **Enable desired platforms** (Discord, Zoom, Teams, etc.)
+3. **Setup virtual microphone** for audio routing
+4. **Configure in your platform**:
+   - Set virtual microphone as input
+   - Enable translation in the app
+   - Start your meeting or game
+5. **Speak naturally** - Translation happens automatically!
 
 ### 🗣️ Conversation Mode Usage
 
@@ -152,6 +229,8 @@ Perfect for real-time conversations between two people:
 - **Ctrl+S** - Open settings
 - **Ctrl+H** - View translation history
 - **Ctrl+M** - Manage models (Whisper/Vosk)
+- **Ctrl+V** - Manage voice duplication models (NEW!)
+- **Ctrl+P** - Platform integrations (NEW!)
 - **Ctrl+Q** - Quit application
 
 ## ⚙️ Configuration
@@ -199,14 +278,20 @@ universal-translator/
 ├── core/                  # Core functionality
 │   ├── __init__.py
 │   ├── translation_engine.py  # Translation with caching
-│   ├── tts_manager.py     # Text-to-speech
-│   └── speech_recognition.py  # Continuous recognition
+│   ├── tts_manager.py     # Text-to-speech with RVC support
+│   ├── speech_recognition.py  # Continuous recognition
+│   ├── rvc_manager.py     # RVC voice duplication models
+│   ├── voice_duplication.py  # Voice cloning engine
+│   ├── translation_modes.py  # Multiple translation modes
+│   └── platform_integrations.py  # Discord, Zoom, etc.
 │
 └── ui/                    # User interface
     ├── __init__.py
     ├── overlay.py         # Resizable overlay window
     ├── settings_dialog.py # Settings configuration
     ├── model_manager_dialog.py  # Model downloads
+    ├── rvc_model_dialog.py  # Voice duplication models (NEW!)
+    ├── platform_integrations_dialog.py  # Platform setup (NEW!)
     └── main_window.py     # Main application window
 ```
 

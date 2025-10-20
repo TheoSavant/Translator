@@ -10,6 +10,7 @@ from config.constants import RecognitionEngine
 from database import db
 from core import translator, tts_manager, ContinuousSpeechRecognitionThread
 from core import conversation_mode, contextual_engine, offline_translator
+from core import translation_mode_manager, TranslationMode, voice_duplication, platform_integration
 from models import whisper_manager
 from utils import audio_device_manager, gpu_manager
 from .overlay import ResizableOverlay
@@ -22,7 +23,7 @@ log = logging.getLogger("Translator")
 class LiveTranslatorApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("🌍 Universal Live Translator — Professional Edition v3.5")
+        self.setWindowTitle("🌍 Universal Live Translator — Professional Edition v4.5")
         self.resize(1300, 1000)
         self.setMinimumSize(900, 700)
         self.recognition_thread = None
@@ -124,6 +125,30 @@ class LiveTranslatorApp(QMainWindow):
         """)
         top_bar.addWidget(self.models_btn)
         
+        self.rvc_btn = QPushButton("🎙️ Voice Models")
+        self.rvc_btn.clicked.connect(self.show_rvc_models)
+        self.rvc_btn.setToolTip("Manage RVC voice duplication models")
+        self.rvc_btn.setStyleSheet("""
+            QPushButton {
+                padding: 8px 16px;
+                font-size: 13px;
+                font-weight: 500;
+            }
+        """)
+        top_bar.addWidget(self.rvc_btn)
+        
+        self.platforms_btn = QPushButton("🔗 Platforms")
+        self.platforms_btn.clicked.connect(self.show_platforms)
+        self.platforms_btn.setToolTip("Configure Discord, Zoom, Teams integrations")
+        self.platforms_btn.setStyleSheet("""
+            QPushButton {
+                padding: 8px 16px;
+                font-size: 13px;
+                font-weight: 500;
+            }
+        """)
+        top_bar.addWidget(self.platforms_btn)
+        
         self.theme_btn = QPushButton("🌓 Theme")
         self.theme_btn.clicked.connect(self.toggle_theme)
         self.theme_btn.setToolTip("Toggle dark/light theme (Ctrl+D)")
@@ -206,9 +231,20 @@ class LiveTranslatorApp(QMainWindow):
         mode_label.setStyleSheet("font-weight: 500; font-size: 13px;")
         engine_row.addWidget(mode_label)
         self.mode_combo = QComboBox()
-        self.mode_combo.addItems(["Continuous", "Real-time", "Manual"])
-        self.mode_combo.currentTextChanged.connect(lambda m: setattr(self, 'translation_mode', m))
-        self.mode_combo.setToolTip("Translation mode:\n• Continuous: Auto-translate as you speak\n• Real-time: Live translation\n• Manual: Translate on demand")
+        self.mode_combo.addItems([
+            "Standard (After Completion)",
+            "Simultaneous (Real-time)",
+            "Universal (Auto Language)",
+            "Voice Duplication"
+        ])
+        self.mode_combo.currentTextChanged.connect(self.on_translation_mode_changed)
+        self.mode_combo.setToolTip(
+            "Translation mode:\n"
+            "• Standard: Translates after sentence completion\n"
+            "• Simultaneous: Near real-time translation and dubbing\n"
+            "• Universal: Captures and translates any language in real-time\n"
+            "• Voice Duplication: Translates while preserving your voice"
+        )
         engine_row.addWidget(self.mode_combo, 1)
         
         config_layout.addLayout(engine_row)
@@ -700,6 +736,12 @@ Enjoy your professional-grade translator! 🚀
             # Refresh UI if needed
             pass
     
+    def show_platforms(self):
+        """Show platform integrations dialog"""
+        from .platform_integrations_dialog import PlatformIntegrationsDialog
+        dialog = PlatformIntegrationsDialog(self)
+        dialog.exec()
+    
     def show_settings(self):
         dialog = SettingsDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -719,6 +761,38 @@ Enjoy your professional-grade translator! 🚀
             self.gpu_status.setText(f"🚀 Device: {device.upper()}")
             self.gpu_checkbox.setChecked(config.get("use_gpu", True))
             self.statusBar().showMessage("Settings saved - Subtitle speed updated", 3000)
+    
+    def show_rvc_models(self):
+        """Show RVC voice duplication models dialog"""
+        from .rvc_model_dialog import RVCModelDialog
+        dialog = RVCModelDialog(self)
+        dialog.exec()
+    
+    def on_translation_mode_changed(self, mode_text: str):
+        """Handle translation mode change"""
+        mode_map = {
+            "Standard (After Completion)": TranslationMode.STANDARD,
+            "Simultaneous (Real-time)": TranslationMode.SIMULTANEOUS,
+            "Universal (Auto Language)": TranslationMode.UNIVERSAL,
+            "Voice Duplication": TranslationMode.VOICE_DUPLICATION
+        }
+        
+        selected_mode = mode_map.get(mode_text, TranslationMode.STANDARD)
+        translation_mode_manager.set_mode(selected_mode)
+        
+        # Enable voice duplication if that mode is selected
+        if selected_mode == TranslationMode.VOICE_DUPLICATION:
+            if voice_duplication.get_current_model():
+                voice_duplication.enable()
+            else:
+                QMessageBox.information(
+                    self,
+                    "Voice Duplication",
+                    "No voice model selected. Please add and activate a voice model in Voice Models manager."
+                )
+        
+        self.translation_mode = mode_text
+        log.info(f"Translation mode changed to: {mode_text}")
     
     def swap_languages(self):
         """Swap source and target languages with validation"""

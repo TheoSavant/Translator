@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """
-Universal Live Translator Desktop — Professional Edition v3.5
+Universal Live Translator Desktop — Professional Edition v4.5
 -------------------------------------------------------------
-🎨 Netflix/Google-Level Professional Features:
-- 🎙️ Continuous listening (never stops - speak naturally)
+🎙️ Voice Duplication & Advanced Translation Features:
+- 🗣️ Voice duplication mode (translate while preserving your voice)
+- 🔧 Custom RVC model support (PTH, index, config files)
+- 🌍 Multiple translation modes (Standard, Simultaneous, Universal, Voice Duplication)
+- 🔗 Platform integrations (Discord, Zoom, Teams, Meet, Slack, Skype)
+- 🎮 Gaming features (real-time dubbing, text overlay)
 - 📺 Netflix-style resizable overlay (Material Design 3)
 - 🚀 GPU acceleration (CUDA/MPS - 10-20x faster)
 - ⚡ Advanced async pipeline (parallel processing)
 - 💎 Material Design 3 UI (glassmorphic effects)
 - 🎬 Smooth animations and micro-interactions
-- ♿ Accessible design with keyboard navigation
-- 🌈 Professional color system and typography
 - 📊 Real-time performance monitoring
-- 🔧 Comprehensive settings management
 """
 import sys
 import logging
@@ -47,11 +48,11 @@ from ui import LiveTranslatorApp
 def main():
     """Main application entry point"""
     app = QApplication(sys.argv)
-    app.setApplicationName("Universal Live Translator Pro v3.5")
+    app.setApplicationName("Universal Live Translator Pro v4.5")
     app.setStyle("Fusion")
     
     log.info("="*70)
-    log.info("🌍 Universal Live Translator — Professional Edition v3.5")
+    log.info("🌍 Universal Live Translator — Professional Edition v4.5")
     log.info("="*70)
     log.info(f"📁 Data Directory: {BASE_DIR}")
     log.info(f"🚀 GPU Status: {gpu_manager.device_name}")
